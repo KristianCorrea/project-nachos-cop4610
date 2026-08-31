@@ -1,0 +1,14 @@
+# Nachos build products
+**/nachos
+**/*.o
+**/swtch.s
+**/DISK
+
+# Editor / OS junk
+.DS_Store
+*~
+*.swp
+
+# Archives (e.g. submission tarballs)
+*.tgz
+*.tar.gz
