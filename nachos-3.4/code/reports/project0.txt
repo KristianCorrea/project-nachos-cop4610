@@ -1,0 +1,84 @@
+Project 0 Report — Nachos Warmup
+Course: COP 4610
+Group 19: Kristian Correa, Sheila Perez Vitorero, Skyler Hall
+
+Each member's experience installing Nachos, running the required tests, and
+understanding the Thread class is recorded below.
+
+
+================================================================================
+Kristian Correa
+================================================================================
+
+Install / platform:
+I worked with Nachos v3.4 on ocelot.aul.fiu.edu (FIU's Ocelot Server). After
+establishing and cloning our group repository (using the port of Nachos 3.4 provided), 
+I entered nachos-3.4/code, I ran make to build the system. And once the build finished 
+without errors, the nachos binaries were available under the threads and userprog subdirectories.
+
+Tests:
+I ran ./threads/nachos and got the expected ping-pong output for threads 0
+and 1 (loops 0 through 4), then the machine halted at 130 ticks. In
+userprog I first ran ./nachos by itself by mistake and it just halted
+(10 ticks). With ./nachos -x ../test/halt it printed "Machine halting!"
+and finished at 22 ticks. I also tried ./nachos -s -x ../test/halt; it
+stopped before each instruction, dumped the registers, and waited at the
+"11>" prompt.
+
+Thread class:
+The Thread class stands for one thread of execution in Nachos. It keeps
+things like the thread's stack, saved registers, whether it is running,
+ready, or blocked, and a name for debugging. You create a Thread object,
+then call Fork to start it. Yield lets another thread run, Sleep puts the
+thread to sleep, and Finish ends it. If the thread runs a user program, it
+also has space for that program's registers and address space.
+
+
+================================================================================
+Sheila Perez Vitorero
+================================================================================
+
+Install / platform:
+I installed Nachos v3.4 on ocelot.aul.fiu.edu, a CentOS 8 machine. When I ran
+make in the code directory, the build failed because the Makefiles referenced
+an old gcc install path. I fixed this by using sed to replace the outdated path
+in all the Makefiles with the correct path for the installed gcc version. After
+that fix Nachos compiled successfully.
+
+Tests:
+After building Nachos, I ran the threads demo and it printed the expected
+output showing thread 0 and 1 alternating loop counts, followed by the machine
+halting with ticks (130). I also ran the userprog demo, which produced the
+expected "Machine halting!" message with ticks (22). I also tested single-step
+mode using the -s flag, which paused execution before each simulated
+instruction and printed the machine's register state, program counter, and
+next instruction address at each step.
+
+Thread class:
+The Thread class in Nachos represents a single thread of execution, storing
+everything needed to save and restore the thread's state during a context
+switch. Each thread holds a stack pointer, an array of saved CPU register
+values, a pointer to its private execution stack, a status field, and a debug
+name. Threads are created in two steps: allocating the thread object, then
+calling Fork() to start it running a given function. Other key operations
+include Yield() to give up the CPU, Sleep() to block, and Finish() to mark the
+thread as done. If the thread is running a user program, it also stores a
+separate set of user-level registers and a pointer to its address space, since
+user threads need distinct register state for kernel mode vs user mode.
+
+
+================================================================================
+Skyler Hall
+================================================================================
+
+Install / platform:
+[TODO: Skyler — platform used, any build issues, and how you got make to
+succeed.]
+
+Tests:
+[TODO: Skyler — briefly note threads demo, userprog halt, and single-step (-s)
+results.]
+
+Thread class:
+[TODO: Skyler — short description of the Thread class (stack, registers,
+status, Fork/Yield/Sleep/Finish, optional user AddrSpace).]
