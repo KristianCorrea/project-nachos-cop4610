@@ -72,13 +72,47 @@ Skyler Hall
 ================================================================================
 
 Install / platform:
-[TODO: Skyler — platform used, any build issues, and how you got make to
-succeed.]
+Logging in took me longer than expected. The project instructions said to
+connect to nachos.aul.fiu.edu, but that hostname would not resolve, SSH
+returned a "could not resolve hostname" error. The machine that actually
+worked was ocelot.aul.fiu.edu. My next problem was the username. I was typing
+my Panther ID number when the login actually needs my FIU username, shall088,
+the part before @fiu.edu in my student email. I also had to reset my password
+at the KFSCIS student reset page, support.cis.fiu.edu/aul-pw-reset. That is a
+separate password from my regular FIU login used for MyFIU and Canvas.
+
+Once I was logged in, I made a directory called nachosdir in my home folder
+and copied the Nachos 3.4 tarball onto the server, then unpacked it with
+tar zxf and moved into nachos-3.4/code. Running make from there built the
+whole thing without errors, which produced a nachos executable in each
+subdirectory.
 
 Tests:
-[TODO: Skyler — briefly note threads demo, userprog halt, and single-step (-s)
-results.]
+I started with the threads version by running ./nachos in the threads folder,
+and it ran the built in thread test that switches back and forth between two
+threads and prints which one is running on each loop, then halted at 130
+ticks. That made it clear that Nachos is doing its own scheduling internally
+rather than relying on the operating system underneath it. Next I went into
+the userprog folder and ran ./nachos -x ../test/halt, which loads a small
+compiled user program into the simulated machine and runs it until it calls
+the halt system call. It printed "Machine halting!" and the machine
+statistics, finishing at 22 ticks. Finally I ran the same program with the -s
+flag for single step mode, which drops you into a prompt and prints each MIPS
+instruction as it executes. That output is long, but it showed how much work
+is happening for a program that does almost nothing, and it is the part that
+made the simulation feel real to me. The main thing I took away from this
+warmup is that most of the difficulty was environment setup rather than the
+code, and that reading the error messages carefully, like the hostname not
+resolving, would have saved me a lot of guessing.
 
 Thread class:
-[TODO: Skyler — short description of the Thread class (stack, registers,
-status, Fork/Yield/Sleep/Finish, optional user AddrSpace).]
+Looking at thread.h, every thread has three things: an execution stack, space
+to save its CPU registers (machineState), and a status (running, ready,
+blocked, or finished). The stack is a fixed 4096 words allocated when the
+thread is created, so deep recursion or large local arrays can run off the end
+without warning. The basic operations are Fork, Yield, Sleep, and Finish. When
+one thread stops and another runs, its registers get saved into its
+machineState array and restored when it is switched back in, so it can pick up
+exactly where it left off. A thread running a user program has two sets of
+registers because kernel code runs on that thread's behalf, and without a
+separate set it would overwrite the values the user program was holding.
