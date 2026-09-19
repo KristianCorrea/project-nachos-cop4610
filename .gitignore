@@ -12,3 +12,16 @@
 # Archives (e.g. submission tarballs)
 *.tgz
 *.tar.gz
+
+# Host / tool binaries
+**/coff2noff
+**/coff2flat
+**/disassemble
+**/out
+
+# Test user programs and intermediates
+**/test/*.coff
+**/test/halt
+**/test/matmult
+**/test/shell
+**/test/sort
