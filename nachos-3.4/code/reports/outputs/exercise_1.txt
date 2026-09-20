@@ -1,0 +1,393 @@
+# Build unsynced
+# threads/Makefile is: DEFINES = -DTHREADS
+
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 0
+*** thread 0 sees value 0
+*** thread 0 sees value 1
+*** thread 0 sees value 2
+*** thread 0 sees value 3
+*** thread 0 sees value 4
+Thread 0 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 110, idle 0, system 110, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 1
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+Thread 0 sees final value 5
+Thread 1 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 230, idle 0, system 230, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 2
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 2 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 2 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 2 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 3
+*** thread 2 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+*** thread 2 sees value 4
+Thread 0 sees final value 5
+Thread 1 sees final value 5
+Thread 2 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 350, idle 0, system 350, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 3
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 2 sees value 0
+*** thread 3 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 2 sees value 1
+*** thread 3 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 2 sees value 2
+*** thread 3 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 3
+*** thread 2 sees value 3
+*** thread 3 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+*** thread 2 sees value 4
+*** thread 3 sees value 4
+Thread 0 sees final value 5
+Thread 1 sees final value 5
+Thread 2 sees final value 5
+Thread 3 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 470, idle 0, system 470, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 4
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 2 sees value 0
+*** thread 3 sees value 0
+*** thread 4 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 2 sees value 1
+*** thread 3 sees value 1
+*** thread 4 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 2 sees value 2
+*** thread 3 sees value 2
+*** thread 4 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 3
+*** thread 2 sees value 3
+*** thread 3 sees value 3
+*** thread 4 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+*** thread 2 sees value 4
+*** thread 3 sees value 4
+*** thread 4 sees value 4
+Thread 0 sees final value 5
+Thread 1 sees final value 5
+Thread 2 sees final value 5
+Thread 3 sees final value 5
+Thread 4 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 590, idle 0, system 590, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -rs 42 -q 4
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 2 sees value 0
+*** thread 3 sees value 0
+*** thread 4 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 3 sees value 1
+*** thread 4 sees value 1
+*** thread 2 sees value 2
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 3 sees value 3
+*** thread 4 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+*** thread 2 sees value 4
+*** thread 3 sees value 4
+*** thread 4 sees value 4
+*** thread 0 sees value 5
+*** thread 2 sees value 5
+*** thread 4 sees value 5
+*** thread 3 sees value 6
+Thread 0 sees final value 6
+*** thread 1 sees value 6
+*** thread 2 sees value 6
+Thread 4 sees final value 7
+Thread 3 sees final value 7
+Thread 1 sees final value 7
+Thread 2 sees final value 7
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 662, idle 12, system 650, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+
+
+
+# Build Synced.
+# threads/Makefile: DEFINES = -DTHREADS -DHW1_SEMAPHORES
+
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 0
+*** thread 0 sees value 0
+*** thread 0 sees value 1
+*** thread 0 sees value 2
+*** thread 0 sees value 3
+*** thread 0 sees value 4
+Thread 0 sees final value 5
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 210, idle 0, system 210, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 1
+*** thread 0 sees value 0
+*** thread 1 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 5
+*** thread 0 sees value 6
+*** thread 1 sees value 7
+*** thread 0 sees value 8
+*** thread 1 sees value 9
+Thread 0 sees final value 9
+Thread 1 sees final value 10
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 430, idle 0, system 430, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 2
+*** thread 0 sees value 0
+*** thread 1 sees value 1
+*** thread 2 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 4
+*** thread 2 sees value 5
+*** thread 0 sees value 6
+*** thread 1 sees value 7
+*** thread 2 sees value 8
+*** thread 0 sees value 9
+*** thread 1 sees value 10
+*** thread 2 sees value 11
+*** thread 0 sees value 12
+*** thread 1 sees value 13
+Thread 0 sees final value 13
+*** thread 2 sees value 14
+Thread 1 sees final value 14
+Thread 2 sees final value 15
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 650, idle 0, system 650, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 3
+*** thread 0 sees value 0
+*** thread 1 sees value 1
+*** thread 2 sees value 2
+*** thread 3 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 5
+*** thread 2 sees value 6
+*** thread 3 sees value 7
+*** thread 0 sees value 8
+*** thread 1 sees value 9
+*** thread 2 sees value 10
+*** thread 3 sees value 11
+*** thread 0 sees value 12
+*** thread 1 sees value 13
+*** thread 2 sees value 14
+*** thread 3 sees value 15
+*** thread 0 sees value 16
+*** thread 1 sees value 17
+Thread 0 sees final value 17
+*** thread 2 sees value 18
+Thread 1 sees final value 18
+*** thread 3 sees value 19
+Thread 2 sees final value 19
+Thread 3 sees final value 20
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 870, idle 0, system 870, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -q 4
+*** thread 0 sees value 0
+*** thread 1 sees value 1
+*** thread 2 sees value 2
+*** thread 3 sees value 3
+*** thread 4 sees value 4
+*** thread 0 sees value 5
+*** thread 1 sees value 6
+*** thread 2 sees value 7
+*** thread 3 sees value 8
+*** thread 4 sees value 9
+*** thread 0 sees value 10
+*** thread 1 sees value 11
+*** thread 2 sees value 12
+*** thread 3 sees value 13
+*** thread 4 sees value 14
+*** thread 0 sees value 15
+*** thread 1 sees value 16
+*** thread 2 sees value 17
+*** thread 3 sees value 18
+*** thread 4 sees value 19
+*** thread 0 sees value 20
+*** thread 1 sees value 21
+Thread 0 sees final value 21
+*** thread 2 sees value 22
+Thread 1 sees final value 22
+*** thread 3 sees value 23
+Thread 2 sees final value 23
+*** thread 4 sees value 24
+Thread 3 sees final value 24
+Thread 4 sees final value 25
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 1090, idle 0, system 1090, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+⬢ [k-nuckles-t480@toolbx threads]$ ./nachos -rs 42 -q 4
+*** thread 0 sees value 0
+*** thread 1 sees value 1
+*** thread 2 sees value 2
+*** thread 3 sees value 3
+*** thread 4 sees value 4
+*** thread 0 sees value 5
+*** thread 1 sees value 6
+*** thread 2 sees value 7
+*** thread 3 sees value 8
+*** thread 4 sees value 9
+*** thread 3 sees value 10
+*** thread 1 sees value 11
+*** thread 2 sees value 12
+*** thread 0 sees value 13
+*** thread 4 sees value 14
+*** thread 3 sees value 15
+*** thread 1 sees value 16
+*** thread 2 sees value 17
+*** thread 0 sees value 18
+*** thread 4 sees value 19
+*** thread 3 sees value 20
+*** thread 4 sees value 21
+Thread 3 sees final value 21
+*** thread 2 sees value 22
+Thread 4 sees final value 22
+*** thread 0 sees value 23
+Thread 2 sees final value 24
+*** thread 1 sees value 24
+Thread 0 sees final value 24
+Thread 1 sees final value 25
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 1334, idle 134, system 1200, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
