@@ -8,7 +8,7 @@ Completion Status
 
 Exercise 1 (HW1_SEMAPHORES): Complete.
 Exercise 2 (HW1_LOCKS): Complete.
-Exercise 3: Not started.
+Exercise 3 (Condition variables): Complete.
 Exercise 4 (HW1_ELEVATOR): Not started.
 
 Preprocessor note: HW1_SEMAPHORES, HW1_LOCKS, and HW1_ELEVATOR are disabled in
@@ -105,3 +105,28 @@ value 25. With -rs 42 -q 4 the schedule changes but all finals remain 25.
 So Lock Acquire/Release correctly replaces the semaphore mutex for this demo.
 
 Raw run logs: code/reports/outputs/exercise_2.txt.
+
+
+================================================================================
+Exercise 3 — Implementing Conditions
+================================================================================
+
+What we implemented
+--------------------
+We implemented Mesa-style condition variables in synch.cc / synch.h. A Condition
+has no readable value; it is a waiting room used with a Lock. Private state is a
+waitQueue of per-waiter semaphores (initial value 0).
+
+  Condition::Condition(debugName) — save name, empty waitQueue
+  Condition::~Condition()         — delete waitQueue
+  Wait(lock)      — ASSERT lock held; enqueue Semaphore(0); Release;
+                    P() to sleep; Acquire; delete waiter
+  Signal(lock)    — ASSERT lock held; wake one waiter (Remove + V), if any
+  Broadcast(lock) — ASSERT lock held; wake all waiters on the queue
+
+Signal/Broadcast only put waiters on the ready list; the waiter re-acquires the
+lock inside Wait (Mesa semantics). Callers should re-check their predicate in a
+loop after Wait returns.
+
+End-to-end testing is deferred to Exercise 4 (elevator), which uses Wait/Signal
+(and Broadcast as needed) under HW1_ELEVATOR.
