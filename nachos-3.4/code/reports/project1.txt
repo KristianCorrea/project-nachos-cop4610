@@ -9,7 +9,7 @@ Completion Status
 Exercise 1 (HW1_SEMAPHORES): Complete.
 Exercise 2 (HW1_LOCKS): Complete.
 Exercise 3 (Condition variables): Complete.
-Exercise 4 (HW1_ELEVATOR): Not started.
+Exercise 4 (HW1_ELEVATOR): Complete.
 
 Preprocessor note: HW1_SEMAPHORES, HW1_LOCKS, and HW1_ELEVATOR are disabled in
 the submitted Makefiles (DEFINES = -DTHREADS only). Graders can enable features
@@ -130,3 +130,54 @@ loop after Wait returns.
 
 End-to-end testing is deferred to Exercise 4 (elevator), which uses Wait/Signal
 (and Broadcast as needed) under HW1_ELEVATOR.
+
+
+================================================================================
+Exercise 4 — Elevator / HW1_ELEVATOR
+================================================================================
+
+What we implemented
+--------------------
+We implemented Elevator(numFloors) and ArrivingGoingFromTo(atFloor, toFloor)
+in threads/elevator.cc (linked via Makefile.common). Under -DHW1_ELEVATOR,
+main.cc starts Elevator(10) and issues 24 person requests; ThreadTest is
+skipped so elevator output is not mixed with the shared-variable demo.
+
+Design:
+  - One elevator thread; each person is a thread with a unique id
+  - Capacity 5; waiting lists per floor; up to 5 riders onboard
+  - Lock (elevatorLock) protects shared state
+  - Condition (elevatorCond) wakes an idle elevator when someone requests
+  - Per-person semaphores boarded / arrived so a rider blocks until they
+    enter and until they reach toFloor
+  - 50-iteration busy loop (+ Yield) between floors for the required delay
+  - Policy: move toward the nearest floor with demand; service every floor
+    on the way (drop off first, then board up to capacity)
+
+Required prints:
+  Person x wants to go to floor y from floor z.
+  Person x got into the elevator.
+  Person x got out of the elevator.
+  Elevator arrives on floor x.
+
+
+Bug fix during testing
+----------------------
+An early version counted waiting passengers as demand even when the car was
+full. At a floor with waiters but no drop-offs, FindNearestDemandFloor kept
+returning the current floor and the elevator spun forever holding the lock
+(livelock after "Elevator arrives on floor 3").
+
+Fix: when numPeopleIn == MAX_CAPACITY, only rider destination floors count
+as demand. Waiting queues are ignored until there is free capacity, so the
+car leaves to drop people off and free seats.
+
+
+Test results (DEFINES = -DTHREADS -DHW1_ELEVATOR)
+-------------------------------------------------
+After the fix, all 24 persons print want → into → out in an order consistent
+with floor arrivals; the elevator never exceeds five riders; multiple people
+ride together; the run completes and Nachos halts cleanly (3630 ticks in our
+log).
+
+Raw run logs (before/after fix): code/reports/outputs/exercise_4.txt.
