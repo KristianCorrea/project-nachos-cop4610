@@ -7,7 +7,7 @@ Completion Status
 ================================================================================
 
 Exercise 1 (HW1_SEMAPHORES): Complete.
-Exercise 2 (HW1_LOCKS): Not started.
+Exercise 2 (HW1_LOCKS): Complete.
 Exercise 3: Not started.
 Exercise 4 (HW1_ELEVATOR): Not started.
 
@@ -73,3 +73,35 @@ exclusion plus the barrier meet the handout criteria even under random
 interrupts.
 
 Raw run logs used for this writeup are in code/reports/outputs/exercise_1.txt.
+
+
+================================================================================
+Exercise 2 — Implementing Locks / HW1_LOCKS
+================================================================================
+
+What we implemented
+--------------------
+We implemented the Lock class in synch.cc / synch.h. A Lock provides mutual
+exclusion: at most one thread holds it at a time. Internally it uses a binary
+Semaphore (initial value 1) plus a lockHolder pointer so only the owning thread
+may Release.
+
+  Lock::Lock(debugName)  — create semaphore(1), lockHolder = NULL
+  Lock::~Lock()          — delete the semaphore
+  Lock::Acquire()        — semaphore->P(), then lockHolder = currentThread
+  Lock::Release()        — ASSERT holder is currentThread, clear holder, V()
+  isHeldByCurrentThread() — lockHolder == currentThread
+
+To test, SimpleThread under -DHW1_LOCKS uses Acquire/Release around the shared
+variable critical section instead of Semaphore P/V.
+
+
+Test results (DEFINES = -DTHREADS -DHW1_LOCKS)
+---------------------------------------------
+Same success criteria as the synchronized semaphore demo. With -q 4, "sees
+value" lines climb 0..24 with no lost updates, and every thread prints final
+value 25. With -rs 42 -q 4 the schedule changes but all finals remain 25.
+
+So Lock Acquire/Release correctly replaces the semaphore mutex for this demo.
+
+Raw run logs: code/reports/outputs/exercise_2.txt.

@@ -79,7 +79,8 @@ class Lock {
 
   private:
     char* name;				// for debugging
-    // plus some other stuff you'll need to define
+    Semaphore *semaphore;		// binary semaphore (initial value 1)
+    Thread *lockHolder;			// thread holding the lock, NULL if free
 };
 
 // The following class defines a "condition variable".  A condition

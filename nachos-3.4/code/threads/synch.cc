@@ -97,14 +97,47 @@ Semaphore::V()
     (void) interrupt->SetLevel(oldLevel);
 }
 
+//----------------------------------------------------------------------
+// Lock -- mutual exclusion (Exercise 2). Built on a semaphore with
+// initial value 1, plus lockHolder so only the owner may Release.
+//----------------------------------------------------------------------
+
+Lock::Lock(const char* debugName)
+{
+    name = (char *)debugName;
+    semaphore = new Semaphore(debugName, 1);
+    lockHolder = NULL;
+}
+
+Lock::~Lock()
+{
+    delete semaphore;
+}
+
+void
+Lock::Acquire()
+{
+    semaphore->P();
+    lockHolder = currentThread;
+}
+
+void
+Lock::Release()
+{
+    ASSERT(isHeldByCurrentThread());
+    lockHolder = NULL;
+    semaphore->V();
+}
+
+bool
+Lock::isHeldByCurrentThread()
+{
+    return (lockHolder == currentThread);
+}
+
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(const char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
-
 Condition::Condition(const char* debugName) { }
 Condition::~Condition() { }
 void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }

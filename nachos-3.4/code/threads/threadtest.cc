@@ -8,7 +8,7 @@
 #include "copyright.h"
 #include "system.h"
 
-#ifdef HW1_SEMAPHORES
+#if defined(HW1_SEMAPHORES) || defined(HW1_LOCKS)
 #include "synch.h"
 #endif
 
@@ -28,6 +28,13 @@ int SharedVariable;
 
 #ifdef HW1_SEMAPHORES
 Semaphore *SharedVariableSem = new Semaphore("SharedVariableSem", 1);
+#endif
+
+#ifdef HW1_LOCKS
+Lock *SharedVariableLock = new Lock("SharedVariableLock");
+#endif
+
+#if defined(HW1_SEMAPHORES) || defined(HW1_LOCKS)
 Semaphore *BarrierMutex = new Semaphore("BarrierMutex", 1);
 Semaphore *BarrierSem = new Semaphore("BarrierSem", 0);
 int numThreadsTotal = 0;
@@ -43,6 +50,9 @@ SimpleThread(int which)
 #ifdef HW1_SEMAPHORES
         SharedVariableSem->P();
 #endif
+#ifdef HW1_LOCKS
+        SharedVariableLock->Acquire();
+#endif
         val = SharedVariable;
         printf("*** thread %d sees value %d\n", which, val);
         currentThread->Yield();
@@ -50,10 +60,13 @@ SimpleThread(int which)
 #ifdef HW1_SEMAPHORES
         SharedVariableSem->V();
 #endif
+#ifdef HW1_LOCKS
+        SharedVariableLock->Release();
+#endif
         currentThread->Yield();
     }
 
-#ifdef HW1_SEMAPHORES
+#if defined(HW1_SEMAPHORES) || defined(HW1_LOCKS)
     // One-shot barrier: wait until every thread has finished the loop
     // so they all observe the same final SharedVariable value.
     BarrierMutex->P();
@@ -81,7 +94,7 @@ ThreadTest(int n)
 {
     DEBUG('t', "Entering ThreadTest");
 
-#ifdef HW1_SEMAPHORES
+#if defined(HW1_SEMAPHORES) || defined(HW1_LOCKS)
     numThreadsTotal = n + 1;	// n forked threads + main
     numArrived = 0;
 #endif
