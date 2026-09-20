@@ -132,6 +132,6 @@ class Condition {
 
   private:
     char* name;
-    // plus some other stuff you'll need to define
+    List *waitQueue;		// queue of semaphores, one per waiting thread
 };
 #endif // SYNCH_H

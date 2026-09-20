@@ -135,11 +135,55 @@ Lock::isHeldByCurrentThread()
     return (lockHolder == currentThread);
 }
 
-// Dummy functions -- so we can compile our later assignments 
-// Note -- without a correct implementation of Condition::Wait(), 
-// the test case in the network assignment won't work!
-Condition::Condition(const char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+//----------------------------------------------------------------------
+// Condition -- Mesa-style condition variables (Exercise 3).
+// Each waiter has a private semaphore(0) on waitQueue.
+//----------------------------------------------------------------------
+
+Condition::Condition(const char* debugName)
+{
+    name = (char *)debugName;
+    waitQueue = new List;
+}
+
+Condition::~Condition()
+{
+    delete waitQueue;
+}
+
+void
+Condition::Wait(Lock* conditionLock)
+{
+    ASSERT(conditionLock->isHeldByCurrentThread());
+
+    Semaphore *waiter = new Semaphore("condition waiter", 0);
+    waitQueue->Append((void *)waiter);
+
+    conditionLock->Release();
+    waiter->P();
+    conditionLock->Acquire();
+
+    delete waiter;
+}
+
+void
+Condition::Signal(Lock* conditionLock)
+{
+    ASSERT(conditionLock->isHeldByCurrentThread());
+
+    Semaphore *waiter = (Semaphore *)waitQueue->Remove();
+    if (waiter != NULL) {
+        waiter->V();
+    }
+}
+
+void
+Condition::Broadcast(Lock* conditionLock)
+{
+    ASSERT(conditionLock->isHeldByCurrentThread());
+
+    Semaphore *waiter;
+    while ((waiter = (Semaphore *)waitQueue->Remove()) != NULL) {
+        waiter->V();
+    }
+}
