@@ -60,6 +60,9 @@ extern int testnum;
 // External functions used by this file
 
 extern void ThreadTest(int), Copy(char *unixFile, char *nachosFile);
+#ifdef HW1_ELEVATOR
+extern void Elevator(int), ArrivingGoingFromTo(int, int);
+#endif
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
@@ -103,7 +106,33 @@ main(int argc, char **argv)
 
     ThreadTest(testnum);
 #endif
-
+#ifdef HW1_ELEVATOR
+    Elevator(10);
+    ArrivingGoingFromTo(1, 7);
+    ArrivingGoingFromTo(3, 9);
+    ArrivingGoingFromTo(8, 2);
+    ArrivingGoingFromTo(5, 1);
+    ArrivingGoingFromTo(2, 6);
+    ArrivingGoingFromTo(9, 4);
+    ArrivingGoingFromTo(4, 10);
+    ArrivingGoingFromTo(6, 3);
+    ArrivingGoingFromTo(7, 8);
+    ArrivingGoingFromTo(10, 5);
+    ArrivingGoingFromTo(1, 9);
+    ArrivingGoingFromTo(2, 8);
+    ArrivingGoingFromTo(3, 7);
+    ArrivingGoingFromTo(4, 6);
+    ArrivingGoingFromTo(5, 10);
+    ArrivingGoingFromTo(6, 1);
+    ArrivingGoingFromTo(7, 2);
+    ArrivingGoingFromTo(8, 3);
+    ArrivingGoingFromTo(9, 4);
+    ArrivingGoingFromTo(10, 1);
+    ArrivingGoingFromTo(2, 5);
+    ArrivingGoingFromTo(4, 9);
+    ArrivingGoingFromTo(6, 8);
+    ArrivingGoingFromTo(8, 1);
+#endif
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
