@@ -1,0 +1,75 @@
+Project 1 Report — Threads Synchronization
+Course: COP 4610
+Group 19: Kristian Correa, Sheila Perez Vitorero, Skyler Hall
+
+================================================================================
+Completion Status
+================================================================================
+
+Exercise 1 (HW1_SEMAPHORES): Complete.
+Exercise 2 (HW1_LOCKS): Not started.
+Exercise 3: Not started.
+Exercise 4 (HW1_ELEVATOR): Not started.
+
+Preprocessor note: HW1_SEMAPHORES, HW1_LOCKS, and HW1_ELEVATOR are disabled in
+the submitted Makefiles (DEFINES = -DTHREADS only). Graders can enable features
+by adding -DHW1_SEMAPHORES (etc.) via the DEFINES variable.
+
+
+================================================================================
+Exercise 1 — Simple Threads / HW1_SEMAPHORES
+================================================================================
+
+What we implemented
+--------------------
+ThreadTest(int n) forks n threads (ids 1..n); the main thread runs
+SimpleThread(0). The -q flag in main.cc supplies n (via testnum).
+
+SimpleThread uses a shared counter SharedVariable. Each thread loops five
+times: read the counter, print "*** thread %d sees value %d", Yield, write
+val+1, Yield again, then print the final value.
+
+Under -DHW1_SEMAPHORES we protect the read-modify-write with a binary
+semaphore (P before the critical section, V after the write). We also use a
+barrier (arrival count + BarrierSem) so every thread waits until all
+have finished the loop before printing the final value. Without HW1_SEMAPHORES
+those sync calls are compiled out.
+
+
+Unsynchronized results (DEFINES = -DTHREADS)
+--------------------------------------------
+Without -rs, Yield interleaving is very regular: in each "round" every thread
+reads the same SharedVariable value (all see 0, then all see 1, and so on).
+Each thread then writes val+1, so only the last write in the round sticks.
+After five rounds SharedVariable is only 5, regardless of how many threads
+ran. For example with -q 4 (five threads), the correct total would be
+5 * 5 = 25 increments, but every thread printed final value 5 — almost all
+updates were lost.
+
+With random yields (-rs 42 -q 4) the schedule is messier, but the counter is
+still wrong (finals around 6–7 instead of 25). This demonstrates a classic
+race: the Yield between reading and writing SharedVariable lets other threads
+observe and overwrite the same val, so increments disappear.
+
+
+Synchronized results (DEFINES = -DTHREADS -DHW1_SEMAPHORES)
+----------------------------------------------------------
+With the mutex, each iteration increments SharedVariable by exactly one. The
+printed "sees value" lines climb 0, 1, 2, ... with no duplicates for the same
+global step.
+
+Without a barrier, early finishers printed smaller "final" values while others
+were still in the loop (e.g. -q 4 produced finals 21..25 even though the true
+end count was 25). After adding the barrier, all threads agree:
+
+  -q 0 → all finals 5
+  -q 1 → all finals 10
+  -q 2 → all finals 15
+  -q 3 → all finals 20
+  -q 4 → all finals 25
+
+With -rs 42 -q 4, every thread still printed final value 25. So mutual
+exclusion plus the barrier meet the handout criteria even under random
+interrupts.
+
+Raw run logs used for this writeup are in code/reports/outputs/exercise_1.txt.
