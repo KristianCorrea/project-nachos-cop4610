@@ -104,7 +104,9 @@ main(int argc, char **argv)
       }
     }
 
-    ThreadTest(testnum);
+	#ifndef HW1_ELEVATOR
+    	ThreadTest(testnum);
+	#endif
 #endif
 #ifdef HW1_ELEVATOR
     Elevator(10);
