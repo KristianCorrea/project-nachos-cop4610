@@ -1,0 +1,212 @@
+# Exercise 4 — Elevator (HW1_ELEVATOR)
+# Build: DEFINES = -DTHREADS -DHW1_ELEVATOR
+# Test harness: Elevator(10) + 24 ArrivingGoingFromTo(...) calls in main.cc
+
+
+================================================================================
+Run 1 — Before fix (livelock)
+================================================================================
+# Bug: when the car was full, waiting passengers at the current floor still
+# counted as "demand", so FindNearestDemandFloor returned the current floor
+# and ElevatorThreadFunc spun forever (ServiceCurrentFloor + continue).
+# Also: ThreadTest still ran before the elevator (fixed later by skipping
+# ThreadTest under HW1_ELEVATOR).
+#
+# Hung after arriving on floor 3; interrupted with Ctrl-C.
+
+$ ./nachos
+*** thread 0 sees value 0
+*** thread 1 sees value 0
+*** thread 0 sees value 1
+*** thread 1 sees value 1
+*** thread 0 sees value 2
+*** thread 1 sees value 2
+*** thread 0 sees value 3
+*** thread 1 sees value 3
+*** thread 0 sees value 4
+*** thread 1 sees value 4
+Thread 0 sees final value 5
+Thread 1 sees final value 5
+Elevator arrives on floor 1.
+Person 0 wants to go to floor 7 from floor 1.
+Person 1 wants to go to floor 9 from floor 3.
+Person 2 wants to go to floor 2 from floor 8.
+Person 3 wants to go to floor 1 from floor 5.
+Person 4 wants to go to floor 6 from floor 2.
+Person 5 wants to go to floor 4 from floor 9.
+Person 6 wants to go to floor 10 from floor 4.
+Person 7 wants to go to floor 3 from floor 6.
+Person 8 wants to go to floor 8 from floor 7.
+Person 9 wants to go to floor 5 from floor 10.
+Person 10 wants to go to floor 9 from floor 1.
+Person 11 wants to go to floor 8 from floor 2.
+Person 12 wants to go to floor 7 from floor 3.
+Person 13 wants to go to floor 6 from floor 4.
+Person 14 wants to go to floor 10 from floor 5.
+Person 15 wants to go to floor 1 from floor 6.
+Person 16 wants to go to floor 2 from floor 7.
+Person 17 wants to go to floor 3 from floor 8.
+Person 18 wants to go to floor 4 from floor 9.
+Person 19 wants to go to floor 1 from floor 10.
+Person 20 wants to go to floor 5 from floor 2.
+Person 21 wants to go to floor 9 from floor 4.
+Person 22 wants to go to floor 8 from floor 6.
+Person 23 wants to go to floor 1 from floor 8.
+Person 0 got into the elevator.
+Person 10 got into the elevator.
+Elevator arrives on floor 2.
+Person 4 got into the elevator.
+Person 11 got into the elevator.
+Person 20 got into the elevator.
+Elevator arrives on floor 3.
+^C
+Cleaning up...
+
+
+================================================================================
+Run 2 — After fix (successful completion)
+================================================================================
+# Fix: when numPeopleIn == MAX_CAPACITY, only rider drop-off floors count as
+# demand (waiting queues ignored until there is free capacity).
+# ThreadTest skipped under HW1_ELEVATOR — elevator-only output.
+# All 24 persons board and exit; elevator idles; Nachos halts cleanly.
+
+$ ./nachos
+Elevator arrives on floor 1.
+Person 0 wants to go to floor 7 from floor 1.
+Person 1 wants to go to floor 9 from floor 3.
+Person 2 wants to go to floor 2 from floor 8.
+Person 3 wants to go to floor 1 from floor 5.
+Person 4 wants to go to floor 6 from floor 2.
+Person 5 wants to go to floor 4 from floor 9.
+Person 6 wants to go to floor 10 from floor 4.
+Person 7 wants to go to floor 3 from floor 6.
+Person 8 wants to go to floor 8 from floor 7.
+Person 9 wants to go to floor 5 from floor 10.
+Person 10 wants to go to floor 9 from floor 1.
+Person 11 wants to go to floor 8 from floor 2.
+Person 12 wants to go to floor 7 from floor 3.
+Person 13 wants to go to floor 6 from floor 4.
+Person 14 wants to go to floor 10 from floor 5.
+Person 15 wants to go to floor 1 from floor 6.
+Person 16 wants to go to floor 2 from floor 7.
+Person 17 wants to go to floor 3 from floor 8.
+Person 18 wants to go to floor 4 from floor 9.
+Person 19 wants to go to floor 1 from floor 10.
+Person 20 wants to go to floor 5 from floor 2.
+Person 21 wants to go to floor 9 from floor 4.
+Person 22 wants to go to floor 8 from floor 6.
+Person 23 wants to go to floor 1 from floor 8.
+Person 0 got into the elevator.
+Person 10 got into the elevator.
+Elevator arrives on floor 2.
+Person 4 got into the elevator.
+Person 11 got into the elevator.
+Person 20 got into the elevator.
+Elevator arrives on floor 3.
+Elevator arrives on floor 4.
+Elevator arrives on floor 5.
+Person 20 got out of the elevator.
+Person 3 got into the elevator.
+Elevator arrives on floor 6.
+Person 4 got out of the elevator.
+Person 7 got into the elevator.
+Elevator arrives on floor 7.
+Person 0 got out of the elevator.
+Person 8 got into the elevator.
+Elevator arrives on floor 8.
+Person 8 got out of the elevator.
+Person 11 got out of the elevator.
+Person 2 got into the elevator.
+Person 17 got into the elevator.
+Elevator arrives on floor 9.
+Person 10 got out of the elevator.
+Person 5 got into the elevator.
+Elevator arrives on floor 8.
+Elevator arrives on floor 7.
+Elevator arrives on floor 6.
+Elevator arrives on floor 5.
+Elevator arrives on floor 4.
+Person 5 got out of the elevator.
+Person 6 got into the elevator.
+Elevator arrives on floor 3.
+Person 7 got out of the elevator.
+Person 17 got out of the elevator.
+Person 1 got into the elevator.
+Person 12 got into the elevator.
+Elevator arrives on floor 2.
+Person 2 got out of the elevator.
+Elevator arrives on floor 1.
+Person 3 got out of the elevator.
+Elevator arrives on floor 2.
+Elevator arrives on floor 3.
+Elevator arrives on floor 4.
+Person 13 got into the elevator.
+Person 21 got into the elevator.
+Elevator arrives on floor 5.
+Elevator arrives on floor 6.
+Person 13 got out of the elevator.
+Person 15 got into the elevator.
+Elevator arrives on floor 7.
+Person 12 got out of the elevator.
+Person 16 got into the elevator.
+Elevator arrives on floor 8.
+Elevator arrives on floor 9.
+Person 1 got out of the elevator.
+Person 21 got out of the elevator.
+Person 18 got into the elevator.
+Elevator arrives on floor 8.
+Person 23 got into the elevator.
+Elevator arrives on floor 9.
+Elevator arrives on floor 10.
+Person 6 got out of the elevator.
+Person 9 got into the elevator.
+Elevator arrives on floor 9.
+Elevator arrives on floor 8.
+Elevator arrives on floor 7.
+Elevator arrives on floor 6.
+Elevator arrives on floor 5.
+Person 9 got out of the elevator.
+Person 14 got into the elevator.
+Elevator arrives on floor 4.
+Person 18 got out of the elevator.
+Elevator arrives on floor 3.
+Elevator arrives on floor 2.
+Person 16 got out of the elevator.
+Elevator arrives on floor 1.
+Person 15 got out of the elevator.
+Person 23 got out of the elevator.
+Elevator arrives on floor 2.
+Elevator arrives on floor 3.
+Elevator arrives on floor 4.
+Elevator arrives on floor 5.
+Elevator arrives on floor 6.
+Person 22 got into the elevator.
+Elevator arrives on floor 7.
+Elevator arrives on floor 8.
+Person 22 got out of the elevator.
+Elevator arrives on floor 9.
+Elevator arrives on floor 10.
+Person 14 got out of the elevator.
+Person 19 got into the elevator.
+Elevator arrives on floor 9.
+Elevator arrives on floor 8.
+Elevator arrives on floor 7.
+Elevator arrives on floor 6.
+Elevator arrives on floor 5.
+Elevator arrives on floor 4.
+Elevator arrives on floor 3.
+Elevator arrives on floor 2.
+Elevator arrives on floor 1.
+Person 19 got out of the elevator.
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 3630, idle 0, system 3630, user 0
+Disk I/O: reads 0, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
