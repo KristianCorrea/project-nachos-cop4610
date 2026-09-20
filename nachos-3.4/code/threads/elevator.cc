@@ -42,25 +42,32 @@ static int nextPersonId = 0;
 //----------------------------------------------------------------------
 // FindNearestDemandFloor
 //  Returns the closest floor (by distance from currentFloor) where
-//  someone is waiting to board, or a rider wants to get off.
-//  Returns -1 if there is no demand anywhere.
+//  someone is waiting to board (only if there is free capacity), or a
+//  rider wants to get off. Returns -1 if there is no demand anywhere.
+//
+//  When the car is full, waiting queues must not count as demand at the
+//  current floor — otherwise we spin forever servicing a full car that
+//  cannot board anyone and has no drop-offs here.
 //----------------------------------------------------------------------
 
 static int
 FindNearestDemandFloor()
 {
     int best = -1, bestDist = 1000000;
+    bool hasRoom = (elevatorInfo.numPeopleIn < MAX_CAPACITY);
 
     for (int f = 1; f <= elevatorInfo.numFloors; f++) {
-        bool demand = !waitingAtFloor[f]->IsEmpty();
-        if (!demand) {
-            for (int i = 0; i < MAX_CAPACITY; i++) {
-                if (riders[i] != NULL && riders[i]->toFloor == f) {
-                    demand = true;
-                    break;
-                }
+        bool demand = false;
+
+        for (int i = 0; i < MAX_CAPACITY; i++) {
+            if (riders[i] != NULL && riders[i]->toFloor == f) {
+                demand = true;
+                break;
             }
         }
+        if (!demand && hasRoom && !waitingAtFloor[f]->IsEmpty())
+            demand = true;
+
         if (demand) {
             int dist = (f > elevatorInfo.currentFloor)
                          ? (f - elevatorInfo.currentFloor)
