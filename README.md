@@ -19,24 +19,15 @@ the semester (threads, user programs, VM, file system, etc.).
 
 Working directory for builds is typically `nachos-3.4/code/` (or `code/threads/` for Project 1).
 
-## Dependencies
+## Requirements
 
-Nachos builds as a **32-bit** host binary (`g++ -m32`, `as --32`). The bundled
-MIPS cross-compiler under `gnu-decstation-ultrix/` is also 32-bit, so i686
-libraries are required.
+Nachos builds as a **32-bit** host binary (`g++ -m32`, `as --32`). You need a 32-bit C/C++ toolchain and related libs. Ocelot / lab hosts usually already have these.
 
-### Fedora Toolbox (recommended)
-
-Keeps 32-bit packages off the host. Fedora 40 works well with this tree:
+Fedora Toolbox example:
 
 ```bash
 toolbox create --distro fedora --release 40 nachos
 toolbox enter nachos
-```
-
-Inside the toolbox:
-
-```bash
 sudo dnf install -y \
   make gcc gcc-c++ binutils ed tcsh gdb \
   glibc-devel glibc-devel.i686 \
@@ -44,39 +35,28 @@ sudo dnf install -y \
   libgcc.i686
 ```
 
-| Package | Purpose |
-|---|---|
-| `gcc` / `gcc-c++` / `binutils` / `make` | Host Nachos build (`-m32`) |
-| `glibc-devel.i686`, `libstdc++-devel.i686`, `libgcc.i686` | 32-bit compile and running the MIPS cross-compiler |
-| `libstdc++-devel` (x86_64) | Multilib C++ headers (`bits/c++config.h`) |
-| `ed` | `make depend` updates Makefiles via `ed` |
-| `tcsh` | Top-level `clean` / `print` targets call `/bin/csh` |
-| `gdb` | Optional debugging |
-
-Always build and run from inside the toolbox (`toolbox enter nachos`).
-
-## Build basics
+## Fresh clone
 
 ```bash
 cd nachos-3.4/code
-make clean && make depend && make   # or just build under threads/
+make
 ```
 
-If `make` fails looking for an old GCC path (e.g. `.../gcc/.../8/include/stddef.h`), run `make depend` inside the toolbox so dependency lines match the current toolchain.
-
-Default `threads/Makefile`:
-
-```make
-DEFINES = -DTHREADS
-```
-
-Graders (and local demos) add Project 1 flags through this same `DEFINES` variable. Leave it as `-DTHREADS` only for submission.
+This regenerates makefile dependencies for your machine and builds every assignment directory (`threads`, `userprog`, `vm`, …).
 
 ---
 
 ## Project 1 — Threads synchronization
 
 **Status:** Exercises 1–4 complete. Writeup: `nachos-3.4/code/reports/project1.txt`.
+
+Default `threads/Makefile` keeps features off for submission:
+
+```make
+DEFINES = -DTHREADS
+```
+
+“Complete” means the code is in the tree; each `HW1_*` feature is **compile-time**. Edit `DEFINES`, then rebuild in `threads/` (or from `code/`).
 
 | Exercise | Flag | What we built |
 |---|---|---|
@@ -91,11 +71,11 @@ Graders (and local demos) add Project 1 flags through this same `DEFINES` variab
 - `threads/synch.h`, `threads/synch.cc` — Semaphore (stock), Lock, Condition
 - `threads/elevator.cc` — Ex4 controller (`Elevator`, `ArrivingGoingFromTo`)
 - `threads/main.cc` — `-q N` → `ThreadTest(N)`; elevator harness under `HW1_ELEVATOR`
-- `code/Makefile.common` — links `elevator.cc`; compiles with `$(DEFINES)`
+- `code/Makefile.common` — lists `elevator.cc` / `elevator.o`; compiles with `$(DEFINES)`
 
 ### How to enable a feature
 
-Edit `nachos-3.4/code/threads/Makefile`, then rebuild:
+Edit `nachos-3.4/code/threads/Makefile`:
 
 ```make
 # Ex1
@@ -108,10 +88,14 @@ DEFINES = -DTHREADS -DHW1_LOCKS
 DEFINES = -DTHREADS -DHW1_ELEVATOR
 ```
 
+Then rebuild:
+
 ```bash
-cd nachos-3.4/code/threads
-make clean && make depend && make
+cd nachos-3.4/code
+make clean && make
 ```
+
+Or from `threads/`: `make clean && make depend && make`.
 
 ### Run commands
 
@@ -129,7 +113,7 @@ make clean && make depend && make
 ./nachos
 ```
 
-Expected synced finals: `-q 0` → 5, `-q 1` → 10, …, `-q 4` → **25**.
+Expected synced finals: `-q 0` → 5, `-q 1` → 10, …, `-q 4` → **25**. Different finals with no `HW1_*` flag are the race demo, not a broken build.
 
 ### Run logs
 
@@ -145,7 +129,7 @@ Saved under `nachos-3.4/code/reports/outputs/`:
 
 ```bash
 cd nachos-3.4/code
-make
+make              # depend + build all assignment dirs
 
 cd threads && ./nachos                    # historically: ping-pong threads
 cd ../userprog && ./nachos -x ../test/halt
@@ -159,4 +143,4 @@ Note: after Project 1, the default threads binary runs the shared-variable `Thre
 - Use **Nachos 3.4**, not 4.0.
 - Build artifacts (`nachos`, `*.o`, etc.) are gitignored; compile locally before demos or submission.
 - For course turn-in: keep all `HW1_*` flags **disabled**, report in `code/reports/project1.txt`, package as `nachosdir` → `proj1.tgz` per the assignment handout.
-- If `make depend` embeds stale GCC include paths, refresh with `make depend` after a clean toolchain install.
+- After adding a new `.cc` to `Makefile.common`, rebuild from `code/` with `make` so dependencies are regenerated.
