@@ -31,7 +31,11 @@ extern Timer *timer;				// the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
+#include "memorymanager.h"
+#include "processmanager.h"
 extern Machine* machine;	// user program memory and registers
+extern MemoryManager *memoryManager;	// Project 2: physical page allocator
+extern ProcessManager *processManager;	// Project 2: pids + PCB table
 #endif
 
 #ifdef FILESYS_NEEDED 		// FILESYS or FILESYS_STUB 

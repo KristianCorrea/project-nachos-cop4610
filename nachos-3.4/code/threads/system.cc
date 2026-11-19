@@ -29,6 +29,8 @@ SynchDisk   *synchDisk;
 
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
+MemoryManager *memoryManager;	// Project 2
+ProcessManager *processManager;	// Project 2
 #endif
 
 #ifdef NETWORK
@@ -149,6 +151,8 @@ Initialize(int argc, char **argv)
     
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
+    memoryManager = new MemoryManager(NumPhysPages);
+    processManager = new ProcessManager();
 #endif
 
 #ifdef FILESYS
@@ -177,6 +181,8 @@ Cleanup()
 #endif
     
 #ifdef USER_PROGRAM
+    delete processManager;
+    delete memoryManager;
     delete machine;
 #endif
 
