@@ -24,6 +24,133 @@
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
+#include "synch.h"
+#include "addrspace.h"
+#include "pcb.h"
+
+//----------------------------------------------------------------------
+// Project 2 helpers (Group 19)
+//----------------------------------------------------------------------
+
+// pid (SpaceId) of the running process, or -1 if it has none
+static int
+CurrentPid()
+{
+    if (currentThread->space == NULL || currentThread->space->pcb == NULL)
+        return -1;
+    return currentThread->space->pcb->getID();
+}
+
+// Move the PC past the syscall instruction (4 bytes). Without this the
+// user program would make the same system call forever.
+static void
+IncrementPC()
+{
+    int pc = machine->ReadRegister(PCReg);
+    machine->WriteRegister(PrevPCReg, pc);
+    machine->WriteRegister(PCReg, pc + 4);
+    machine->WriteRegister(NextPCReg, pc + 8);
+}
+
+// Copy a NULL-terminated string from user memory (virtual address
+// "virtAddr") into "buf" (at most maxLen bytes incl. the NULL).
+// Returns FALSE if the address is bad or the string is too long.
+// Needed by Exec to get the file name.
+static bool
+ReadUserString(int virtAddr, char *buf, int maxLen)
+{
+    AddrSpace *space = currentThread->space;
+    for (int i = 0; i < maxLen; i++) {
+        int physAddr;
+        if (!space->Translate(virtAddr + i, &physAddr))
+            return FALSE;
+        buf[i] = machine->mainMemory[physAddr];
+        if (buf[i] == '\0')
+            return TRUE;
+    }
+    return FALSE;
+}
+
+// End the current process: save the exit status for Join, wake anyone
+// joining on it, orphan its children, free its memory and finish the
+// kernel thread. Shared by Exit, Kill (on yourself) and bad exceptions.
+static void
+ExitProcess(int status)
+{
+    PCB *pcb = currentThread->space->pcb;
+    int pid = pcb->getID();
+
+    printf("Process %d exits with %d\n", pid, status);
+
+    processManager->lock->Acquire();
+    pcb->exitStatus = status;
+    pcb->hasExited = TRUE;
+    processManager->orphanChildren(pcb);
+    pcb->exitCond->Broadcast(processManager->lock);
+    if (pcb->parent == NULL)            // no one can ever Join us
+        processManager->clearPID(pid);  // (also deletes the PCB)
+    // else: stay as a "zombie" PCB so the parent's Join can read the
+    // status. Freed when the parent joins us or exits.
+    processManager->lock->Release();
+
+    delete currentThread->space;        // gives pages back
+    currentThread->space = NULL;
+    currentThread->Finish();
+}
+
+//----------------------------------------------------------------------
+// System calls. Each returns the value to put in r2.
+// TODO markers are the parts still to be split up in the group.
+//----------------------------------------------------------------------
+
+static void
+SysYield()
+{
+    currentThread->Yield();
+}
+
+static void
+SysExit(int status)
+{
+    ExitProcess(status);
+}
+
+static int
+SysFork(int funcAddr)
+{
+    // TODO (Fork, 35%): copy AddrSpace, new Thread + PCB, set child's
+    // PC to funcAddr, Thread::Fork a function that restores registers
+    // and calls machine->Run(). Required print:
+    // Process [pid] Fork: start at address [0x...] with [n] pages memory
+    return -1;
+}
+
+static int
+SysExec(int nameAddr)
+{
+    // TODO (Exec, 35%): use ReadUserString(nameAddr, ...), print
+    // "Exec Program: [pid] loading [name]", load a new AddrSpace,
+    // replace the current one, InitRegisters, run. -1 on failure.
+    return -1;
+}
+
+static int
+SysJoin(int pid)
+{
+    // TODO (Join): must be our child; Wait on its exitCond until
+    // hasExited, return exitStatus, then free its PCB. -1 on error.
+    return -1;
+}
+
+static int
+SysKill(int pid)
+{
+    // TODO (Kill): print "Process [pid] killed process [killed-pid]"
+    // or "Process [pid] cannot kill process [killed-pid]: doesn't exist".
+    // If pid is ourselves, ExitProcess. Otherwise remove the thread
+    // from the ready list, free its memory and PCB. 0 ok, -1 bad pid.
+    return -1;
+}
 
 //----------------------------------------------------------------------
 // ExceptionHandler
@@ -40,24 +167,64 @@
 //		arg4 -- r7
 //
 //	The result of the system call, if any, must be put back into r2. 
-//
-// And don't forget to increment the pc before returning. (Or else you'll
-// loop making the same system call forever!
-//
-//	"which" is the kind of exception.  The list of possible exceptions 
-//	are in machine.h.
 //----------------------------------------------------------------------
 
 void
 ExceptionHandler(ExceptionType which)
 {
     int type = machine->ReadRegister(2);
+    int arg1 = machine->ReadRegister(4);
 
-    if ((which == SyscallException) && (type == SC_Halt)) {
-	DEBUG('a', "Shutdown, initiated by user program.\n");
-   	interrupt->Halt();
-    } else {
-	printf("Unexpected user mode exception %d %d\n", which, type);
-	ASSERT(FALSE);
+    if (which != SyscallException) {
+        // A bad user program must never crash Nachos: kill the process.
+        printf("Unexpected user mode exception %d %d in process %d\n",
+               which, type, CurrentPid());
+        ExitProcess(-1);
+        return;
     }
+
+    switch (type) {
+      case SC_Halt:
+        DEBUG('a', "Shutdown, initiated by user program.\n");
+        interrupt->Halt();
+        break;
+
+      case SC_Exit:
+        printf("System Call: %d invoked Exit\n", CurrentPid());
+        SysExit(arg1);                  // never returns
+        break;
+
+      case SC_Yield:
+        printf("System Call: %d invoked Yield\n", CurrentPid());
+        IncrementPC();                  // before yielding, so we resume
+        SysYield();                     // at the next instruction
+        return;
+
+      case SC_Fork:
+        printf("System Call: %d invoked Fork\n", CurrentPid());
+        machine->WriteRegister(2, SysFork(arg1));
+        break;
+
+      case SC_Exec:
+        printf("System Call: %d invoked Exec\n", CurrentPid());
+        machine->WriteRegister(2, SysExec(arg1));
+        break;
+
+      case SC_Join:
+        printf("System Call: %d invoked Join\n", CurrentPid());
+        machine->WriteRegister(2, SysJoin(arg1));
+        break;
+
+      case SC_Kill:
+        printf("System Call: %d invoked Kill\n", CurrentPid());
+        machine->WriteRegister(2, SysKill(arg1));
+        break;
+
+      default:
+        printf("Unexpected system call %d in process %d\n", type, CurrentPid());
+        machine->WriteRegister(2, -1);  // fail the call, don't crash
+        break;
+    }
+
+    IncrementPC();
 }
