@@ -29,6 +29,7 @@
 #define SC_Close	8
 #define SC_Fork		9
 #define SC_Yield	10
+#define SC_Kill		11	/* Project 2 */
 
 #ifndef IN_ASM
 
@@ -63,6 +64,11 @@ SpaceId Exec(char *name);
  * Return the exit status.
  */
 int Join(SpaceId id); 	
+
+/* Project 2: kill the process "id". Returns 0 on success, -1 if "id"
+ * is not a valid process.
+ */
+int Kill(SpaceId id);
  
 
 /* File system operations: Create, Open, Read, Write, Close
@@ -114,10 +120,11 @@ void Close(OpenFileId id);
  * threads to run within a user program. 
  */
 
-/* Fork a thread to run a procedure ("func") in the *same* address space 
- * as the current thread.
+/* Project 2: Fork creates a new process whose address space is a COPY of
+ * the caller's, and starts it running "func". Returns the child's
+ * SpaceId, or -1 on failure (e.g. not enough memory).
  */
-void Fork(void (*func)());
+SpaceId Fork(void (*func)());
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
