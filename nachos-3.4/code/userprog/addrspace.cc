@@ -63,13 +63,25 @@ SwapHeader (NoffHeader *noffH)
 AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
-    unsigned int i, size;
+    unsigned int size;
+
+    pcb = NULL;
+    pageTable = NULL;
+    numPages = 0;
+    valid = FALSE;
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
     	SwapHeader(&noffH);
-    ASSERT(noffH.noffMagic == NOFFMAGIC);
+    if (noffH.noffMagic != NOFFMAGIC) {
+        DEBUG('a', "Not a NOFF executable\n");
+        return;                         // valid stays FALSE
+    }
+
+    // Required print: segment sizes of the program being loaded
+    printf("Loaded Program: %d code | %d data | %d bss\n",
+           noffH.code.size, noffH.initData.size, noffH.uninitData.size);
 
 // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
@@ -78,54 +90,160 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
-						// to run anything too big --
-						// at least until we have
-						// virtual memory
-
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-// first, set up the translation 
-    pageTable = new TranslationEntry[numPages];
-    for (i = 0; i < numPages; i++) {
-	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = i;
-	pageTable[i].valid = TRUE;
-	pageTable[i].use = FALSE;
-	pageTable[i].dirty = FALSE;
-	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-					// a separate page, we could set its 
-					// pages to be read-only
-    }
-    
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-    bzero(machine->mainMemory, size);
 
-// then, copy in the code and data segments into memory
+    // Get real physical pages from the memory manager (all or nothing).
+    // If memory is full, valid stays FALSE so Fork/Exec can return -1.
+    if (!allocatePages()) {
+        DEBUG('a', "Not enough free memory for %d pages\n", numPages);
+        return;
+    }
+
+    // Zero every page we own (uninitialized data + stack must start at 0).
+    for (unsigned int i = 0; i < numPages; i++)
+        bzero(&(machine->mainMemory[pageTable[i].physicalPage * PageSize]),
+              PageSize);
+
+// then, copy in the code and data segments into memory, page by page
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+        ReadFile(noffH.code.virtualAddr, executable,
+                 noffH.code.size, noffH.code.inFileAddr);
     }
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+        ReadFile(noffH.initData.virtualAddr, executable,
+                 noffH.initData.size, noffH.initData.inFileAddr);
     }
 
+    valid = TRUE;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::AddrSpace(AddrSpace *parentSpace)
+// 	Used by Fork. Makes a new address space the same size as the
+//	parent's and copies every page of the parent's memory into it.
+//----------------------------------------------------------------------
+
+AddrSpace::AddrSpace(AddrSpace *parentSpace)
+{
+    pcb = NULL;
+    pageTable = NULL;
+    valid = FALSE;
+    numPages = parentSpace->numPages;
+
+    if (!allocatePages()) {
+        DEBUG('a', "Not enough free memory to copy %d pages\n", numPages);
+        return;
+    }
+
+    for (unsigned int i = 0; i < numPages; i++) {
+        pageTable[i].readOnly = parentSpace->pageTable[i].readOnly;
+        bcopy(&(machine->mainMemory[parentSpace->pageTable[i].physicalPage * PageSize]),
+              &(machine->mainMemory[pageTable[i].physicalPage * PageSize]),
+              PageSize);
+    }
+
+    valid = TRUE;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::allocatePages
+// 	Builds the page table using pages from the memory manager.
+//	Checks there is enough free memory first; if an allocation still
+//	fails, gives back every page already taken. All or nothing.
+//----------------------------------------------------------------------
+
+bool
+AddrSpace::allocatePages()
+{
+    if (numPages == 0 || (int)numPages > memoryManager->numFreePages())
+        return FALSE;
+
+    pageTable = new TranslationEntry[numPages];
+    for (unsigned int i = 0; i < numPages; i++) {
+        int phys = memoryManager->getPage();
+        if (phys == -1) {               // lost a race: undo and fail
+            for (unsigned int j = 0; j < i; j++)
+                memoryManager->clearPage(pageTable[j].physicalPage);
+            delete [] pageTable;
+            pageTable = NULL;
+            return FALSE;
+        }
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = phys;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+    return TRUE;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::Translate
+// 	Virtual address -> physical address using this space's page table.
+//	Returns FALSE (and leaves *physAddr alone) if virtAddr is out of range.
+//----------------------------------------------------------------------
+
+bool
+AddrSpace::Translate(int virtAddr, int *physAddr)
+{
+    if (virtAddr < 0 || pageTable == NULL)
+        return FALSE;
+    unsigned int vpn = (unsigned) virtAddr / PageSize;
+    unsigned int offset = (unsigned) virtAddr % PageSize;
+    if (vpn >= numPages || !pageTable[vpn].valid)
+        return FALSE;
+    *physAddr = pageTable[vpn].physicalPage * PageSize + offset;
+    return TRUE;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::ReadFile
+// 	Load "size" bytes from "file" (starting at "fileAddr") into this
+//	address space at "virtAddr". Pages may not be contiguous in
+//	physical memory, so copy one page-sized chunk at a time.
+//----------------------------------------------------------------------
+
+int
+AddrSpace::ReadFile(int virtAddr, OpenFile *file, int size, int fileAddr)
+{
+    char *buffer = new char[size];
+    int bytesRead = file->ReadAt(buffer, size, fileAddr);
+    int copied = 0;
+
+    while (copied < bytesRead) {
+        int physAddr;
+        if (!Translate(virtAddr + copied, &physAddr))
+            break;
+        int offset = (virtAddr + copied) % PageSize;
+        int chunk = PageSize - offset;          // room left on this page
+        if (chunk > bytesRead - copied)
+            chunk = bytesRead - copied;
+        bcopy(buffer + copied, &(machine->mainMemory[physAddr]), chunk);
+        copied += chunk;
+    }
+
+    delete [] buffer;
+    return copied;
 }
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
-// 	Dealloate an address space.  Nothing for now!
+// 	Give every physical page back to the memory manager.
 //----------------------------------------------------------------------
 
 AddrSpace::~AddrSpace()
 {
-   delete pageTable;
+    if (pageTable != NULL) {
+        for (unsigned int i = 0; i < numPages; i++)
+            memoryManager->clearPage(pageTable[i].physicalPage);
+        delete [] pageTable;
+    }
 }
 
 //----------------------------------------------------------------------

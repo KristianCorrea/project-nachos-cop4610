@@ -13,6 +13,7 @@
 #include "console.h"
 #include "addrspace.h"
 #include "synch.h"
+#include "pcb.h"
 
 //----------------------------------------------------------------------
 // StartProcess
@@ -31,9 +32,20 @@ StartProcess(char *filename)
 	return;
     }
     space = new AddrSpace(executable);    
+    delete executable;			// close file
+
+    if (!space->isValid()) {
+	printf("Unable to load %s (bad executable or not enough memory)\n",
+	       filename);
+	delete space;
+	return;
+    }
     currentThread->space = space;
 
-    delete executable;			// close file
+    // Project 2: the first user process gets a pid and a PCB (no parent)
+    int pid = processManager->getPID();
+    space->pcb = new PCB(pid, currentThread, NULL);
+    processManager->addPCB(space->pcb);
 
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register
