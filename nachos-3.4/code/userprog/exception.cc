@@ -115,14 +115,80 @@ SysExit(int status)
     ExitProcess(status);
 }
 
+// First thing a forked process runs (in its new kernel thread).
+// Loads the child's registers and page table into the machine,
+// then starts running user code at the forked function.
+static void
+ForkedProcessStart(int unused)
+{
+    currentThread->RestoreUserState();
+    currentThread->space->RestoreState();
+    machine->Run();                     // never returns
+    ASSERT(FALSE);
+}
+
 static int
 SysFork(int funcAddr)
 {
-    // TODO (Fork, 35%): copy AddrSpace, new Thread + PCB, set child's
-    // PC to funcAddr, Thread::Fork a function that restores registers
-    // and calls machine->Run(). Required print:
-    // Process [pid] Fork: start at address [0x...] with [n] pages memory
-    return -1;
+    AddrSpace *parentSpace = currentThread->space;
+    PCB *parentPCB = parentSpace->pcb;
+    int physAddr;
+
+    // The function to run must be a real address in our program.
+    if (!parentSpace->Translate(funcAddr, &physAddr))
+        return -1;
+
+    // 1. Get a pid for the child.
+    processManager->lock->Acquire();
+    int pid = processManager->getPID();
+    processManager->lock->Release();
+    if (pid == -1)
+        return -1;                      // process table is full
+
+    // 2. Copy the parent's address space (fails if memory is full).
+    AddrSpace *childSpace = new AddrSpace(parentSpace);
+    if (!childSpace->isValid()) {
+        delete childSpace;
+        processManager->lock->Acquire();
+        processManager->clearPID(pid);
+        processManager->lock->Release();
+        return -1;
+    }
+
+    // 3. New kernel thread + PCB for the child.
+    Thread *childThread = new Thread("forked process");
+    childThread->space = childSpace;
+    PCB *childPCB = new PCB(pid, childThread, parentPCB);
+    childSpace->pcb = childPCB;
+    processManager->lock->Acquire();
+    processManager->addPCB(childPCB);
+    processManager->lock->Release();
+
+    // 4. Child's registers = parent's registers, except it starts at
+    //    funcAddr. Its return address (r31) stays the parent's, so when
+    //    func returns, the child goes back to the code right after the
+    //    Fork() call. Trick: change the machine registers, save them
+    //    into the child thread, then put the parent's back.
+    int saved[NumTotalRegs];
+    for (int i = 0; i < NumTotalRegs; i++)
+        saved[i] = machine->ReadRegister(i);
+
+    machine->WriteRegister(PCReg, funcAddr);
+    machine->WriteRegister(NextPCReg, funcAddr + 4);
+    machine->WriteRegister(PrevPCReg, funcAddr);
+    childThread->SaveUserState();
+
+    for (int i = 0; i < NumTotalRegs; i++)
+        machine->WriteRegister(i, saved[i]);
+
+    // Required print
+    printf("Process %d Fork: start at address 0x%x with %d pages memory\n",
+           parentPCB->getID(), funcAddr, childSpace->getNumPages());
+
+    // 5. Put the child on the ready list. It starts in ForkedProcessStart.
+    childThread->Fork(ForkedProcessStart, 0);
+
+    return pid;                         // parent gets the child's pid
 }
 
 static int
