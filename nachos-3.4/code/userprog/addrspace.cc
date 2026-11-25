@@ -123,6 +123,32 @@ AddrSpace::AddrSpace(OpenFile *executable)
 }
 
 //----------------------------------------------------------------------
+// AddrSpace::PagesNeeded
+// 	Reads only the NOFF header of "executable". Returns the number of
+//	pages the program would need (code + data + bss + stack), or -1 if
+//	the file is not a NOFF executable.
+//----------------------------------------------------------------------
+
+int
+AddrSpace::PagesNeeded(OpenFile *executable)
+{
+    NoffHeader noffH;
+
+    bzero((char *)&noffH, sizeof(noffH));
+    if (executable->ReadAt((char *)&noffH, sizeof(noffH), 0) != sizeof(noffH))
+        return -1;
+    if ((noffH.noffMagic != NOFFMAGIC) && 
+		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
+    	SwapHeader(&noffH);
+    if (noffH.noffMagic != NOFFMAGIC)
+        return -1;
+
+    unsigned int size = noffH.code.size + noffH.initData.size
+                        + noffH.uninitData.size + UserStackSize;
+    return divRoundUp(size, PageSize);
+}
+
+//----------------------------------------------------------------------
 // AddrSpace::AddrSpace(AddrSpace *parentSpace)
 // 	Used by Fork. Makes a new address space the same size as the
 //	parent's and copies every page of the parent's memory into it.

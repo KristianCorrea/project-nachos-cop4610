@@ -191,13 +191,55 @@ SysFork(int funcAddr)
     return pid;                         // parent gets the child's pid
 }
 
+#define MAX_FILENAME 128
+
+// Exec replaces the current process's program with a new one loaded
+// from a file. Same process, same pid, new code and memory.
+// Returns -1 on failure (the old program keeps running).
+// Returns 0 on success: the new program is set up to start at its
+// beginning, so the caller must NOT touch r2 or the PC afterwards.
 static int
 SysExec(int nameAddr)
 {
-    // TODO (Exec, 35%): use ReadUserString(nameAddr, ...), print
-    // "Exec Program: [pid] loading [name]", load a new AddrSpace,
-    // replace the current one, InitRegisters, run. -1 on failure.
-    return -1;
+    char name[MAX_FILENAME];
+
+    // 1. Copy the file name out of user memory.
+    if (!ReadUserString(nameAddr, name, MAX_FILENAME))
+        return -1;
+
+    // Required print
+    printf("Exec Program: %d loading %s\n", CurrentPid(), name);
+
+    // 2. Open the file and check it's a real program that will fit.
+    //    The old program's pages get freed first, so count them as free.
+    OpenFile *executable = fileSystem->Open(name);
+    if (executable == NULL)
+        return -1;
+
+    AddrSpace *oldSpace = currentThread->space;
+    int needed = AddrSpace::PagesNeeded(executable);
+    int available = memoryManager->numFreePages() + (int) oldSpace->getNumPages();
+    if (needed == -1 || needed > available) {
+        delete executable;
+        return -1;
+    }
+
+    // 3. Swap the old program out for the new one. Keep the same PCB,
+    //    so the pid, parent and anyone Joining on us stay the same.
+    PCB *pcb = oldSpace->pcb;
+    delete oldSpace;                    // frees the old pages
+    AddrSpace *newSpace = new AddrSpace(executable);
+    delete executable;
+    newSpace->pcb = pcb;
+    currentThread->space = newSpace;
+
+    if (!newSpace->isValid())           // old program is gone, can't
+        ExitProcess(-1);                // go back to it, so end process
+
+    // 4. Fresh registers (PC = 0) and the new page table.
+    newSpace->InitRegisters();
+    newSpace->RestoreState();
+    return 0;
 }
 
 static int
@@ -273,7 +315,10 @@ ExceptionHandler(ExceptionType which)
 
       case SC_Exec:
         printf("System Call: %d invoked Exec\n", CurrentPid());
-        machine->WriteRegister(2, SysExec(arg1));
+        if (SysExec(arg1) == 0)
+            return;                     // new program starts at PC 0:
+                                        // don't change r2 or the PC
+        machine->WriteRegister(2, -1);  // failed: old program continues
         break;
 
       case SC_Join:

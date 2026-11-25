@@ -47,6 +47,10 @@ class AddrSpace {
     // starting at virtual address "virtAddr". Returns bytes copied.
     int ReadFile(int virtAddr, OpenFile *file, int size, int fileAddr);
 
+    // How many pages "executable" would need, or -1 if it is not a
+    // valid NOFF program. Used by Exec to check before replacing.
+    static int PagesNeeded(OpenFile *executable);
+
     PCB *pcb;				// process that owns this space
 
   private:
