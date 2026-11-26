@@ -1,0 +1,247 @@
+Project 2 Report - Multiprogramming System Calls
+Course: COP 4610
+Group 19: Kristian Correa, Sheila Perez Vitorero, Skyler Hall
+
+================================================================================
+Completion Status
+================================================================================
+
+Memory manager (physical page allocator):  Complete.
+PCB + process manager (pids, PCB table):   Complete.
+AddrSpace changes (multiprogramming):      Complete.
+Fork:   Complete.
+Exec:   Complete.
+Join:   Complete.
+Exit:   Complete.
+Yield:  Complete.
+Kill:   Complete (see Known Limitations for one detail).
+
+All required output lines are printed in the exact format from the project
+description. All test programs below pass, both with the normal scheduler and
+with random time slicing (-rs <seed>, tested with 20 different seeds each).
+
+
+================================================================================
+How to Build and Run
+================================================================================
+
+    cd nachos-3.4/code
+    make                      (builds nachos and the test programs)
+    cd userprog
+    ./nachos -x ../test/<program>
+    ./nachos -rs 5 -x ../test/<program>     (same, with random time slicing)
+
+Exec file names are relative to the userprog directory (where nachos runs),
+for example Exec("../test/yieldexit").
+
+
+================================================================================
+Design Overview
+================================================================================
+
+Memory manager (userprog/memorymanager.h, .cc)
+----------------------------------------------
+Keeps a BitMap with one bit per physical page (32 pages). getPage() finds and
+marks a free page, clearPage() frees one, numFreePages() counts free pages.
+Every operation is wrapped in a Lock from Project 1 so it is atomic.
+
+PCB (userprog/pcb.h, .cc)
+-------------------------
+One per process. Holds the pid, the kernel Thread running it, a pointer to the
+parent's PCB, the exit status, a hasExited flag, a Condition variable that
+Join waits on, a killed flag (used by Kill), and pendingSpace (used by Fork).
+
+Process manager (userprog/processmanager.h, .cc)
+------------------------------------------------
+Hands out pids with a BitMap (pid 0 is reserved, so pids start at 1) and keeps
+a table of PCBs indexed by pid. One Lock protects the table and is also the
+lock used with every PCB's exit Condition. orphanChildren() is called when a
+process ends: its children lose their parent pointer, and children that had
+already exited (zombies nobody can Join anymore) are freed.
+
+The memory manager and process manager are global objects created in
+threads/system.cc next to the Machine.
+
+AddrSpace (userprog/addrspace.h, .cc)
+-------------------------------------
+- Each address space now gets real physical pages from the memory manager
+  instead of mapping virtual page i to physical page i. Allocation is all or
+  nothing: if there is not enough free memory the space is marked invalid
+  (isValid() returns FALSE) instead of crashing, so Fork/Exec can return -1.
+- Prints "Loaded Program: [x] code | [y] data | [z] bss" when loading.
+- Translate(virtAddr, &physAddr) converts a virtual address using the page
+  table and rejects addresses outside the space.
+- ReadFile(virtAddr, file, size, fileAddr) loads code/data one page at a time,
+  since the pages are no longer contiguous in physical memory.
+- A second constructor AddrSpace(parentSpace) copies the parent's memory page
+  by page into newly allocated pages (used by Fork).
+- PagesNeeded(file) reads only the NOFF header and returns how many pages the
+  program needs, or -1 if it is not a valid program (used by Exec).
+- The destructor gives all pages back to the memory manager.
+
+System call handling (userprog/exception.cc)
+--------------------------------------------
+Every system call prints "System Call: [pid] invoked [call]" and then the PC
+is moved forward by 4 (PrevPC, PC and NextPC updated) so the user program does
+not repeat the same system call. A user exception that is not a system call
+(bad address, etc.) now ends only that process with status -1 instead of
+crashing Nachos.
+
+
+================================================================================
+System Calls
+================================================================================
+
+Yield
+-----
+Moves the PC forward first, then calls currentThread->Yield(), so when the
+process runs again it continues at the next instruction.
+
+Exit(status)
+------------
+Prints "Process [pid] exits with [status]". Frees the address space first
+(so a parent waking up from Join can reuse that memory right away), then
+under the process manager lock: saves the status, sets hasExited, orphans
+its children and broadcasts on its exit Condition. If it has no parent its
+PCB and pid are freed right away; otherwise the PCB stays as a zombie until
+the parent Joins it or exits. Finally the kernel thread calls Finish().
+
+Fork(func)
+----------
+1. Checks that func is a valid address in the caller's space.
+2. Gets a new pid (returns -1 if the table is full).
+3. Copies the parent's address space (returns -1 and frees the pid if there
+   is not enough memory).
+4. Creates a new Thread and PCB (parent = caller).
+5. Copies the parent's registers into the child, except PC = func,
+   NextPC = func + 4. The return register (r31) stays the parent's, so when
+   func returns, the child continues at the instruction after the Fork() call.
+6. Prints "Process [pid] Fork: start at address [0x...] with [n] pages memory".
+7. Thread::Fork starts the child; the parent gets the child's pid.
+
+The child's address space is attached to its thread only when the child
+first runs (ForkedProcessStart, with interrupts off while it loads its
+registers and page table). Without this, a timer interrupt right as the new
+thread starts could save the CPU's registers (the parent's) over the child's
+prepared registers, and the child would run the parent's code. We found this
+with random time slicing (-rs) and this change fixed it.
+
+Exec(filename)
+--------------
+1. Copies the file name out of user memory (string read byte by byte with
+   Translate). Returns -1 for a bad pointer.
+2. Prints "Exec Program: [pid] loading [name]".
+3. Opens the file and uses PagesNeeded() to check it is a valid program that
+   fits in memory, counting the old program's pages as free. On any failure
+   it returns -1 and the old program keeps running.
+4. Frees the old address space and loads the new one in its place, keeping
+   the same PCB, so the pid, parent and anyone Joining on it stay the same.
+5. Sets fresh registers (PC = 0) and the new page table. The handler does not
+   write r2 or move the PC in this case, so the new program starts at its
+   first instruction.
+
+Join(pid)
+---------
+Returns -1 if pid is not a child of the caller. Otherwise waits on the
+child's exit Condition (under the process manager lock) until hasExited is
+set, reads the exit status, frees the child's PCB and pid, and returns the
+status. Works whether the child is still running or already exited.
+
+Kill(pid)
+---------
+If pid does not exist (or already exited) it prints
+"Process [pid] cannot kill process [killed-pid]: doesn't exist" and returns -1.
+Otherwise it prints "Process [pid] killed process [killed-pid]" and:
+- if pid is the caller itself, it exits with status -1;
+- if the target is on the ready list, it is removed from the ready list
+  (new Scheduler::RemoveThread), its memory is freed, it is marked exited
+  with status -1, its parent is woken if Joining, and its thread is deleted;
+- if the target is blocked (for example waiting in Join), it is marked as
+  killed and ends itself with status -1 as soon as it wakes up.
+Returns 0 on success.
+
+Kill is a new system call: SC_Kill (11) was added to userprog/syscall.h and a
+Kill stub was added to test/start.s.
+
+
+================================================================================
+Files Changed / Added
+================================================================================
+
+New:      userprog/memorymanager.h, memorymanager.cc
+          userprog/pcb.h, pcb.cc
+          userprog/processmanager.h, processmanager.cc
+          test/yieldexit.c, forktest.c, exectest.c, forkexec.c,
+          jointest.c, killtest.c
+Changed:  userprog/addrspace.h, addrspace.cc, exception.cc, progtest.cc,
+          syscall.h
+          threads/system.h, system.cc (global memory/process managers)
+          threads/thread.h (getStatus), scheduler.h, scheduler.cc
+          (RemoveThread)
+          test/start.s (Kill stub), test/Makefile, Makefile.common
+
+
+================================================================================
+Test Programs and Expected Output
+================================================================================
+
+Run each from nachos-3.4/code/userprog with ./nachos -x ../test/<name>.
+Only the final "exits" lines are shown here; every system call also prints
+its "System Call:" line.
+
+yieldexit   Yields 3 times, then Exit(5).
+            Process 1 exits with 5
+
+forktest    Forks child() twice. The first child gets 11 pages; the second
+            Fork returns -1 because a third 11-page process does not fit in
+            32 pages (Nachos keeps running). Parent and child take turns
+            yielding.
+            Process 2 exits with 7
+            Process 1 exits with 0
+
+exectest    Exec on a file that does not exist returns -1 and the program
+            keeps going. Then Exec("../test/yieldexit") replaces the program
+            (still process 1). It would exit with 99 if Exec did not replace
+            it.
+            Process 1 exits with 5
+
+forkexec    Parent forks a child; the child Execs yieldexit while the parent
+            keeps running.
+            Process 2 exits with 5
+            Process 1 exits with 0
+
+jointest    Join waits for a slow child (status 7), still gets the status of
+            a child that already exited (8), and returns -1 for a pid that
+            is not its child. Parent exits with 7 + 8.
+            Process 2 exits with 7
+            Process 2 exits with 8
+            Process 1 exits with 15
+
+killtest    Forks a child that yields forever, then kills it. Killing it
+            again, or killing a pid that never existed, fails.
+            Process 1 killed process 2
+            Process 1 cannot kill process 2: doesn't exist
+            Process 1 cannot kill process 20: doesn't exist
+            Process 1 exits with 0
+
+Other cases we tested (not included as programs): Exec with a bad pointer and
+with a program too big for memory (both return -1), a child killing its parent
+while the parent waits in Join (parent exits with -1), killing a child before
+it ever runs, and a forked function that returns without calling Exit (the
+child continues after the Fork() call with its own copy of memory).
+
+
+================================================================================
+Known Limitations
+================================================================================
+
+- Memory is 32 pages of 128 bytes. Each program needs its code + data + a
+  1024 byte stack, so only about 2 to 3 small processes fit at once. The
+  provided sort and matmult programs need more than 32 pages, so they are
+  refused ("Unable to load ...") instead of crashing.
+- Kill on a blocked process (for example one waiting in Join) does not end it
+  immediately; it is marked and ends with status -1 when it wakes up.
+- Exec with an invalid name pointer returns -1 before the "Exec Program" line
+  is printed, since there is no name to print.
+- A Join on a child that was killed returns -1, the same value Join returns
+  for an invalid pid.
