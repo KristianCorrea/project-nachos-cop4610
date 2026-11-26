@@ -35,7 +35,7 @@ CPP = gcc -m32 -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort yieldexit forktest exectest forkexec
+all: halt shell matmult sort yieldexit forktest exectest forkexec jointest killtest
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -89,3 +89,15 @@ forkexec.o: forkexec.c
 forkexec: forkexec.o start.o
 	$(LD) $(LDFLAGS) start.o forkexec.o -o forkexec.coff
 	../bin/coff2noff forkexec.coff forkexec
+
+jointest.o: jointest.c
+	$(CC) $(CFLAGS) -c jointest.c
+jointest: jointest.o start.o
+	$(LD) $(LDFLAGS) start.o jointest.o -o jointest.coff
+	../bin/coff2noff jointest.coff jointest
+
+killtest.o: killtest.c
+	$(CC) $(CFLAGS) -c killtest.c
+killtest: killtest.o start.o
+	$(LD) $(LDFLAGS) start.o killtest.o -o killtest.coff
+	../bin/coff2noff killtest.coff killtest

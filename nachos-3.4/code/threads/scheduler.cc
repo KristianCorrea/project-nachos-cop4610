@@ -145,3 +145,31 @@ Scheduler::Print()
     printf("Ready list contents:\n");
     readyList->Mapcar((VoidFunctionPtr) ThreadPrint);
 }
+
+//----------------------------------------------------------------------
+// Scheduler::RemoveThread
+// 	Project 2 (Kill). Takes "thread" off the ready list, keeping the
+//	order of every other thread. Returns FALSE if it wasn't there.
+//----------------------------------------------------------------------
+
+bool
+Scheduler::RemoveThread(Thread *thread)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    List *keep = new List;
+    bool found = FALSE;
+    Thread *t;
+
+    while ((t = (Thread *) readyList->Remove()) != NULL) {
+        if (t == thread)
+            found = TRUE;
+        else
+            keep->Append((void *) t);
+    }
+    while ((t = (Thread *) keep->Remove()) != NULL)
+        readyList->Append((void *) t);
+    delete keep;
+
+    (void) interrupt->SetLevel(oldLevel);
+    return found;
+}

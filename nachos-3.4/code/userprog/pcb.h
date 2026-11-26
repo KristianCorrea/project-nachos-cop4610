@@ -9,6 +9,7 @@
 
 class Thread;
 class Condition;
+class AddrSpace;
 
 class PCB {
   public:
@@ -21,6 +22,10 @@ class PCB {
     PCB *parent;             // NULL if no parent (or parent exited)
     int exitStatus;          // value passed to Exit(), returned by Join()
     bool hasExited;          // TRUE once the process called Exit / was killed
+    bool killed;             // Kill() was called while it was blocked;
+                             // it ends itself as soon as it wakes up
+    AddrSpace *pendingSpace; // Fork: the child's memory, waiting to be
+                             // attached to its thread when it first runs
     Condition *exitCond;     // Join() waits here, Exit() broadcasts
                              // (used with processManager's lock)
 

@@ -13,6 +13,8 @@ PCB::PCB(int pid, Thread *thread, PCB *parentPCB)
     parent = parentPCB;
     exitStatus = 0;
     hasExited = FALSE;
+    killed = FALSE;
+    pendingSpace = NULL;
     exitCond = new Condition("PCB exit condition");
 }
 

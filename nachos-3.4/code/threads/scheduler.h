@@ -27,6 +27,9 @@ class Scheduler {
 					// list, if any, and return thread.
     void Run(Thread* nextThread);	// Cause nextThread to start running
     void Print();			// Print contents of ready list
+    bool RemoveThread(Thread* thread);	// Project 2 (Kill): take a thread
+					// off the ready list. FALSE if
+					// it wasn't on it.
     
   private:
     List *readyList;  		// queue of threads that are ready to run,

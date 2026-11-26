@@ -82,6 +82,13 @@ ExitProcess(int status)
 
     printf("Process %d exits with %d\n", pid, status);
 
+    // Give the memory back FIRST, so a parent that wakes up from Join
+    // can immediately use it (e.g. to Fork again). Set space to NULL
+    // before deleting so a context switch never touches freed memory.
+    AddrSpace *space = currentThread->space;
+    currentThread->space = NULL;
+    delete space;
+
     processManager->lock->Acquire();
     pcb->exitStatus = status;
     pcb->hasExited = TRUE;
@@ -93,8 +100,6 @@ ExitProcess(int status)
     // status. Freed when the parent joins us or exits.
     processManager->lock->Release();
 
-    delete currentThread->space;        // gives pages back
-    currentThread->space = NULL;
     currentThread->Finish();
 }
 
@@ -116,13 +121,23 @@ SysExit(int status)
 }
 
 // First thing a forked process runs (in its new kernel thread).
-// Loads the child's registers and page table into the machine,
-// then starts running user code at the forked function.
+// Attaches the child's memory to the thread, loads its registers and
+// page table into the machine, then runs user code at the forked
+// function. Interrupts are off during setup: if a timer switch happened
+// before the registers were loaded, Nachos would save the CPU's current
+// (parent's) registers over the child's prepared ones.
 static void
-ForkedProcessStart(int unused)
+ForkedProcessStart(int pcbAddr)
 {
+    PCB *pcb = (PCB *) pcbAddr;
+
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    currentThread->space = pcb->pendingSpace;
+    pcb->pendingSpace = NULL;
     currentThread->RestoreUserState();
     currentThread->space->RestoreState();
+    (void) interrupt->SetLevel(oldLevel);
+
     machine->Run();                     // never returns
     ASSERT(FALSE);
 }
@@ -155,10 +170,12 @@ SysFork(int funcAddr)
         return -1;
     }
 
-    // 3. New kernel thread + PCB for the child.
+    // 3. New kernel thread + PCB for the child. The memory is parked in
+    //    the PCB and attached when the child first runs (see
+    //    ForkedProcessStart for why).
     Thread *childThread = new Thread("forked process");
-    childThread->space = childSpace;
     PCB *childPCB = new PCB(pid, childThread, parentPCB);
+    childPCB->pendingSpace = childSpace;
     childSpace->pcb = childPCB;
     processManager->lock->Acquire();
     processManager->addPCB(childPCB);
@@ -186,7 +203,7 @@ SysFork(int funcAddr)
            parentPCB->getID(), funcAddr, childSpace->getNumPages());
 
     // 5. Put the child on the ready list. It starts in ForkedProcessStart.
-    childThread->Fork(ForkedProcessStart, 0);
+    childThread->Fork(ForkedProcessStart, (int) childPCB);
 
     return pid;                         // parent gets the child's pid
 }
@@ -227,6 +244,7 @@ SysExec(int nameAddr)
     // 3. Swap the old program out for the new one. Keep the same PCB,
     //    so the pid, parent and anyone Joining on us stay the same.
     PCB *pcb = oldSpace->pcb;
+    currentThread->space = NULL;        // no switch may touch it now
     delete oldSpace;                    // frees the old pages
     AddrSpace *newSpace = new AddrSpace(executable);
     delete executable;
@@ -242,22 +260,86 @@ SysExec(int nameAddr)
     return 0;
 }
 
+// Join waits until child "pid" has finished and returns its exit
+// status. Only a parent can Join its own child. -1 on error.
 static int
 SysJoin(int pid)
 {
-    // TODO (Join): must be our child; Wait on its exitCond until
-    // hasExited, return exitStatus, then free its PCB. -1 on error.
-    return -1;
+    PCB *me = currentThread->space->pcb;
+
+    processManager->lock->Acquire();
+    PCB *child = processManager->getPCB(pid);
+    if (child == NULL || child->parent != me) {
+        processManager->lock->Release();
+        return -1;                      // not a valid child of ours
+    }
+
+    // Sleep until the child exits. Exit broadcasts on exitCond.
+    while (!child->hasExited)
+        child->exitCond->Wait(processManager->lock);
+
+    int status = child->exitStatus;
+    processManager->clearPID(pid);      // done with the zombie PCB
+    processManager->lock->Release();
+
+    if (me->killed)                     // someone Killed us while we
+        ExitProcess(-1);                // were waiting
+    return status;
 }
 
+// Kill ends process "pid". 0 on success, -1 if pid doesn't exist.
 static int
 SysKill(int pid)
 {
-    // TODO (Kill): print "Process [pid] killed process [killed-pid]"
-    // or "Process [pid] cannot kill process [killed-pid]: doesn't exist".
-    // If pid is ourselves, ExitProcess. Otherwise remove the thread
-    // from the ready list, free its memory and PCB. 0 ok, -1 bad pid.
-    return -1;
+    int myPid = CurrentPid();
+
+    processManager->lock->Acquire();
+    PCB *target = processManager->getPCB(pid);
+    if (target == NULL || target->hasExited) {
+        processManager->lock->Release();
+        printf("Process %d cannot kill process %d: doesn't exist\n",
+               myPid, pid);
+        return -1;
+    }
+    printf("Process %d killed process %d\n", myPid, pid);
+
+    // Killing yourself is just Exit.
+    if (pid == myPid) {
+        processManager->lock->Release();
+        ExitProcess(-1);                // never returns
+    }
+
+    Thread *victim = target->processThread;
+
+    // If it's blocked (e.g. waiting in Join), we can't safely pull it
+    // out of that wait. Mark it; it ends itself as soon as it wakes.
+    if (victim->getStatus() == BLOCKED) {
+        target->killed = TRUE;
+        processManager->lock->Release();
+        return 0;
+    }
+
+    // Otherwise it's on the ready list: end it right now, the same way
+    // Exit would, but from the outside. Memory goes back first (see
+    // ExitProcess for why).
+    scheduler->RemoveThread(victim);
+    AddrSpace *space = victim->space;
+    if (space == NULL) {                // forked but never ran yet
+        space = target->pendingSpace;
+        target->pendingSpace = NULL;
+    }
+    victim->space = NULL;
+    delete space;
+    target->exitStatus = -1;
+    target->hasExited = TRUE;
+    processManager->orphanChildren(target);
+    target->exitCond->Broadcast(processManager->lock);
+    if (target->parent == NULL)         // nobody can Join it
+        processManager->clearPID(pid);  // (also deletes the PCB)
+    processManager->lock->Release();
+
+    delete victim;                      // free its kernel thread
+    return 0;
 }
 
 //----------------------------------------------------------------------
